@@ -1,0 +1,63 @@
+from idlelib import run
+
+from binance import Client
+
+import pandas as pd
+
+# %run.\var = Binance_keys.ipynb
+# OL2OxNnobMoFGWZCAdE3ZL0Fo0sLkmqEOfp8saKoQLH5GJPk6ujvqOAz556LjkDF
+
+from key import api_key1
+from key import api_secret1
+
+api_key = api_key1
+api_secret = api_secret1
+
+client = Client(api_key, api_secret)
+client.get_acount()
+pd.DataFrame(client.get_historical_klines('BTCUSDT', '1m', '30 m ago UTC'))
+x = pd.DataFrame(client.get_historical_klines('BTCUSDT', '1m', '30 min ago UTC'))
+
+print(x)
+
+def getminutedata(symbol, interval, lookback):
+    frame = pd.DataFrame(client.get_historical_klines(symbol, interval, lookback+'min ago UTC'))
+    frame = frame.iloc[:,:6]
+    frame.columns = ['Time', 'Open', 'Hight', 'Low', 'Close', 'Volume']
+    frame = frame.set_index('Time')
+    frame.index = pd.to_datetime(frame.index, unit='ms')
+    frame = frame.astype(float)
+    return frame
+getminutedata('BTCUSDT', '1m', '30')
+
+y = getminutedata('BTCUSDT', '1m', '30')
+y.Open.plot()
+chart = y.Open.plot()
+
+print(y)
+print(chart)
+
+def strategytest(symbol, qty, entried=False):
+    df = getminutedata(symbol, '1m', '30m')
+    cumulret = (df.Open.pct_change() +1).cumprod() - 1
+    if not entried:
+        if cumulret[-1] < - 0.002:
+            order = client.create_order(symbol = symbol,side = 'BUY', type = 'MARKET', quanity = qty)
+            print(order)
+            entried = True
+        else:
+            print('No Trade has been executed ')
+        if entried:
+            while True:
+                df = getminutedata(symbol, '1m', '30m')
+                sincebuy = df.loc[df.index > pd.to_datetime(order['transactTime'], unit='ms')]
+                if len(sincebuy) > 0:
+                    sincebuyret = (sincebuy.Open.pct_change() +1).cumprod() - 1
+                    if sincebuyret [-1] > 0.0015 or sincebuyret[-1] < - 0.0015:
+                        order = client.create_order(symbol = symbol,side = 'SELL', type ='MARKET', quanity = qty)
+                        print(order)
+                        break
+
+strategytest('BTCUSDT', 0.00001)
+
+print(strategytest)
